@@ -201,7 +201,7 @@ footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);paddin
         <canvas id="wheel" role="img" aria-label="餐點轉盤"></canvas>
         <button class="hub" id="spinBtn" type="button">轉！</button>
       </div>
-      <p class="hint" id="hint">點中間的「轉！」，或按空白鍵</p>
+      <p class="hint" id="hint">盤上一次只擺得下 12 道，每轉一次都從全部 1,000 道重新抽</p>
     </section>
 
     <section class="side">
@@ -209,7 +209,7 @@ footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);paddin
         <div class="ticket-body">
           <div class="ticket-head"><span>今天就吃</span><span class="ticket-no" id="dishNo">No. ----</span></div>
           <p class="ticket-dish idle" id="dish">還沒轉</p>
-          <div class="ticket-meta" id="dishMeta">每轉一次，盤上的 12 道都會重抽</div>
+          <div class="ticket-meta" id="dishMeta">按轉盤中間的「轉！」，或按空白鍵</div>
         </div>
         <div class="ticket-actions">
           <button class="btn primary" id="acceptBtn" type="button" disabled>就吃這個</button>
@@ -1446,6 +1446,7 @@ BLT三明治
   var spinBtn = $('spinBtn'), acceptBtn = $('acceptBtn'), rerollBtn = $('rerollBtn'), mapLink = $('mapLink');
   var dishEl = $('dish'), metaEl = $('dishMeta'), noEl = $('dishNo'), hint = $('hint'), ticket = $('ticket');
   var current = null;
+  var lastDraw = { size: 0, note: '' };
 
   function mapQuery(d){
     if (/自己煮|學餐/.test(d.name)) return null;
@@ -1482,7 +1483,8 @@ BLT三明治
     dishEl.textContent = '轉轉轉……'; dishEl.classList.add('idle');
     metaEl.textContent = '從 ' + p.length.toLocaleString() + ' 道裡抽';
     noEl.textContent = 'No. ----';
-    hint.textContent = note || ' ';
+    lastDraw = { size: p.length, note: note };
+    hint.textContent = note || ('從 ' + p.length.toLocaleString() + ' 道裡抽……');
 
     var start = rot, t0 = performance.now(), last = idxUnderPointer();
     function frame(now){
@@ -1508,6 +1510,7 @@ BLT三明治
     var q = mapQuery(d);
     if (q){ mapLink.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q); mapLink.hidden = false; }
     else mapLink.hidden = true;
+    hint.textContent = lastDraw.note || ('這次是從 ' + lastDraw.size.toLocaleString() + ' 道裡抽中的。盤上只擺得下 12 道，每轉一次都會換。');
     spinBtn.disabled = false; spinBtn.textContent = '再轉';
     acceptBtn.disabled = false; rerollBtn.disabled = false;
     ticket.classList.remove('pop'); void ticket.getBoundingClientRect(); ticket.classList.add('pop');

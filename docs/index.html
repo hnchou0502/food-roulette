@@ -1,0 +1,1673 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="description" content="從 1,000 道一人份的午餐、晚餐裡轉一道。可篩選菜系與飯麵、避開最近吃過的，轉到後一鍵找附近的店。">
+<meta property="og:title" content="今天吃什麼">
+<meta property="og:description" content="1,000 道一人份午晚餐的轉盤，轉到就吃。">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#EDF1EA">
+<style>body{margin:0}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<title>今天吃什麼</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* 版面：便當店點餐台。左邊是轉盤（筷子當指針），右邊是出餐單＋篩選＋最近吃過；手機上下疊。 */
+:root{
+  --bg:#EDF1EA;        /* 淡青菜灰 */
+  --surface:#FFFFFF;
+  --surface-2:#F5F7F2;
+  --ink:#2A211B;       /* 醬油色 */
+  --muted:#6B6259;
+  --line:#D6DBD0;
+  --chili:#C63F29;     /* 辣椒紅＝主色 */
+  --yolk:#EFB030;      /* 蛋黃 */
+  --scallion:#4E8C3E;  /* 青蔥 */
+  --salmon:#EE8B5E;    /* 鮭魚 */
+  --nori:#2E4B3B;      /* 海苔 */
+  --rice:#FBF6EA;      /* 白飯 */
+  --wood:#A8733F;      /* 筷子 */
+  --on-light:#2A211B;
+  --on-dark:#FFFFFF;
+  --dim:rgba(237,241,234,.62);
+  --shadow:rgba(42,33,27,.12);
+  --focus:#1F6FEB;
+  --font-display:"LXGW WenKai TC","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --font-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --radius:16px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14120F; --surface:#1F1C18; --surface-2:#191714; --ink:#F2ECE3; --muted:#A79D91; --line:#38332B;
+    --chili:#E0553B; --yolk:#F0BC48; --scallion:#5FA34F; --salmon:#F09A72; --nori:#3B634D; --rice:#EFE6D2;
+    --wood:#C99058; --on-light:#2A211B; --on-dark:#FFFFFF; --dim:rgba(20,18,15,.6); --shadow:rgba(0,0,0,.45);
+    --focus:#6EA8FF; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14120F; --surface:#1F1C18; --surface-2:#191714; --ink:#F2ECE3; --muted:#A79D91; --line:#38332B;
+  --chili:#E0553B; --yolk:#F0BC48; --scallion:#5FA34F; --salmon:#F09A72; --nori:#3B634D; --rice:#EFE6D2;
+  --wood:#C99058; --on-light:#2A211B; --on-dark:#FFFFFF; --dim:rgba(20,18,15,.6); --shadow:rgba(0,0,0,.45);
+  --focus:#6EA8FF; color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:var(--font-body); font-size:15px; line-height:1.6;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:20px 40px;
+}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+.app{max-width:1060px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+
+.top{display:flex;flex-direction:column;gap:4px}
+.top h1{font-family:var(--font-display);font-weight:700;font-size:clamp(32px,6vw,46px);line-height:1.15;margin:0;letter-spacing:.03em;text-wrap:balance}
+.top p{margin:0;color:var(--muted);max-width:40em}
+.top b{color:var(--ink);font-variant-numeric:tabular-nums}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:32px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr);gap:24px}}
+
+/* ── 轉盤 ── */
+.wheel-col{display:flex;flex-direction:column;align-items:center;gap:12px;min-width:0;padding-top:22px}
+.wheel-wrap{position:relative;width:min(100%,470px);aspect-ratio:1;max-width:100%}
+.wheel-wrap::before{
+  content:"";position:absolute;inset:-9px;border-radius:50%;
+  background:var(--surface);box-shadow:0 0 0 1px var(--line),0 14px 34px var(--shadow);
+}
+#wheel{position:relative;z-index:1;width:100%;height:100%;display:block;border-radius:50%}
+.pointer{
+  position:absolute;z-index:3;left:50%;top:-34px;width:30px;height:74px;
+  transform:translateX(-50%);transform-origin:50% 0;
+  filter:drop-shadow(0 3px 3px var(--shadow));pointer-events:none;
+}
+.pointer.tick{animation:tick .13s ease-out}
+@keyframes tick{0%{transform:translateX(-50%) rotate(0)}35%{transform:translateX(-50%) rotate(-9deg)}100%{transform:translateX(-50%) rotate(0)}}
+.hub{
+  position:absolute;z-index:2;left:50%;top:50%;width:25%;aspect-ratio:1;transform:translate(-50%,-50%);
+  border-radius:50%;border:0;cursor:pointer;
+  background:var(--ink);color:var(--bg);
+  font-family:var(--font-display);font-weight:700;font-size:clamp(20px,5vw,28px);letter-spacing:.04em;
+  box-shadow:0 0 0 6px var(--surface),0 6px 18px var(--shadow);
+  transition:transform .15s ease;
+}
+.hub:hover{transform:translate(-50%,-50%) scale(1.05)}
+.hub:active{transform:translate(-50%,-50%) scale(.96)}
+.hub:disabled{cursor:progress;transform:translate(-50%,-50%)}
+.hint{margin:0;color:var(--muted);font-size:13px;text-align:center;min-height:1.6em}
+
+/* ── 出餐單 ── */
+.side{display:flex;flex-direction:column;gap:26px;min-width:0}
+.ticket{
+  position:relative;background:var(--surface);border-radius:var(--radius);
+  box-shadow:0 0 0 1px var(--line),0 10px 28px var(--shadow);
+}
+.ticket-body{padding:18px 22px 20px;display:flex;flex-direction:column;gap:6px}
+.ticket-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:12px;letter-spacing:.14em;color:var(--muted)}
+.ticket-no{font-variant-numeric:tabular-nums;letter-spacing:.06em}
+.ticket-dish{font-family:var(--font-display);font-weight:700;font-size:clamp(28px,7vw,40px);line-height:1.22;text-wrap:balance;margin:2px 0 0;overflow-wrap:anywhere}
+.ticket-dish.idle{color:var(--muted)}
+.ticket-meta{color:var(--muted);font-size:14px}
+.ticket-actions{
+  position:relative;border-top:2px dashed var(--line);
+  padding:16px 22px 18px;display:flex;flex-wrap:wrap;gap:10px;
+}
+.ticket-actions::before,.ticket-actions::after{
+  content:"";position:absolute;top:-12px;width:22px;height:22px;border-radius:50%;background:var(--bg);
+}
+.ticket-actions::before{left:-11px;box-shadow:inset -1px 0 0 var(--line)}
+.ticket-actions::after{right:-11px;box-shadow:inset 1px 0 0 var(--line)}
+.pop{animation:pop .38s cubic-bezier(.2,.9,.3,1.3)}
+@keyframes pop{0%{transform:scale(.94);opacity:.5}100%{transform:scale(1);opacity:1}}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;
+  padding:9px 18px;border-radius:999px;border:1.5px solid var(--line);
+  background:var(--surface-2);color:var(--ink);font-weight:600;font-size:15px;
+  cursor:pointer;text-decoration:none;
+}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--chili);border-color:var(--chili);color:var(--on-dark)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn:disabled{opacity:.42;cursor:not-allowed}
+.btn:disabled:hover{border-color:var(--line)}
+
+/* ── 篩選 ── */
+.block{display:flex;flex-direction:column;gap:10px}
+.block h2{margin:0;font-size:13px;font-weight:700;letter-spacing:.14em;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{
+  min-height:36px;padding:5px 13px;border-radius:999px;border:1.5px solid var(--line);
+  background:transparent;cursor:pointer;font-size:14px;
+}
+.chip .n{margin-left:5px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.chip:hover{border-color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.chip[aria-pressed="true"] .n{color:inherit;opacity:.7}
+.seg{display:inline-flex;align-self:flex-start;border:1.5px solid var(--line);border-radius:999px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;border-radius:999px;padding:5px 14px;min-height:34px;cursor:pointer;font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--yolk);color:var(--on-light);font-weight:700}
+.check{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;align-self:flex-start}
+.check input{width:18px;height:18px;accent-color:var(--chili)}
+.count{font-size:13px;color:var(--muted)}
+.count b{color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* ── 最近吃過 ── */
+.history{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.history li{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+.history li:last-child{border-bottom:0}
+.history .when{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.history .name{min-width:0;overflow-wrap:anywhere}
+.empty{margin:0;color:var(--muted);font-size:14px}
+.text-btn{border:0;background:none;color:var(--muted);font-size:13px;letter-spacing:0;cursor:pointer;padding:4px 6px;border-radius:6px;text-decoration:underline;text-underline-offset:3px}
+.text-btn.armed{color:var(--chili);font-weight:700}
+
+/* ── 全部菜單 ── */
+.menu{border-top:1px solid var(--line);padding-top:8px}
+.menu summary{cursor:pointer;font-weight:700;padding:10px 0;font-size:16px;list-style-position:inside}
+.menu-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:6px 0 14px}
+.menu input[type="search"]{
+  flex:1 1 220px;min-width:0;max-width:420px;min-height:42px;padding:8px 14px;border-radius:999px;
+  border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;
+}
+.menu-group{margin:18px 0 0}
+.menu-group h3{font-family:var(--font-display);font-size:22px;margin:0 0 4px}
+.menu-group h3 span{font-family:var(--font-body);font-size:13px;color:var(--muted);font-weight:400;margin-left:8px}
+.menu-sub{margin:10px 0 0}
+.menu-sub h4{margin:0 0 4px;font-size:13px;color:var(--muted);font-weight:700;letter-spacing:.08em}
+.menu-sub ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:4px 16px}
+.menu-sub li{font-size:14px}
+.menu-sub li mark{background:var(--yolk);color:var(--on-light);border-radius:3px;padding:0 1px}
+footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);padding-top:14px}
+
+@media (prefers-reduced-motion: reduce){
+  .pointer.tick,.pop{animation:none}
+  .hub{transition:none}
+}
+</style>
+
+<div class="app">
+  <header class="top">
+    <h1>今天吃什麼</h1>
+    <p>從 <b>1,000</b> 道一人份的午餐、晚餐裡抽一道。每一道都是一個人點了就能吃飽的份量。轉到不想吃的，就再轉一次。</p>
+  </header>
+
+  <main class="grid">
+    <section class="wheel-col" aria-label="轉盤">
+      <div class="wheel-wrap" id="wheelWrap">
+        <svg class="pointer" id="pointer" viewBox="0 0 30 74" aria-hidden="true">
+          <rect x="4" y="0" width="7" height="72" rx="3.5" transform="rotate(-6 7.5 0)" fill="var(--wood)"/>
+          <rect x="19" y="0" width="7" height="72" rx="3.5" transform="rotate(6 22.5 0)" fill="var(--wood)"/>
+          <rect x="3" y="2" width="24" height="8" rx="3" fill="var(--chili)"/>
+        </svg>
+        <canvas id="wheel" role="img" aria-label="餐點轉盤"></canvas>
+        <button class="hub" id="spinBtn" type="button">轉！</button>
+      </div>
+      <p class="hint" id="hint">盤上一次只擺得下 12 道，每轉一次都從全部 1,000 道重新抽</p>
+    </section>
+
+    <section class="side">
+      <div class="ticket" id="ticket" aria-live="polite">
+        <div class="ticket-body">
+          <div class="ticket-head"><span>今天就吃</span><span class="ticket-no" id="dishNo">No. ----</span></div>
+          <p class="ticket-dish idle" id="dish">還沒轉</p>
+          <div class="ticket-meta" id="dishMeta">按轉盤中間的「轉！」，或按空白鍵</div>
+        </div>
+        <div class="ticket-actions">
+          <button class="btn primary" id="acceptBtn" type="button" disabled>就吃這個</button>
+          <button class="btn" id="rerollBtn" type="button" disabled>不要，再轉</button>
+          <a class="btn" id="mapLink" href="https://www.google.com/maps" target="_blank" rel="noopener" hidden>找附近的店 ↗</a>
+        </div>
+      </div>
+
+      <div class="block">
+        <h2>想吃哪一類</h2>
+        <div class="chips" id="groupChips"></div>
+        <div class="seg" id="kindSeg" role="group" aria-label="飯或麵">
+          <button type="button" data-kind="all">不限</button>
+          <button type="button" data-kind="飯">飯類</button>
+          <button type="button" data-kind="麵">麵類</button>
+          <button type="button" data-kind="其他">其他</button>
+        </div>
+        <label class="check"><input type="checkbox" id="avoidRecent"> 避開最近吃過的 7 道</label>
+        <div class="count" id="poolCount"></div>
+      </div>
+
+      <div class="block">
+        <h2><span>最近吃過</span><button class="text-btn" id="clearHist" type="button">清除紀錄</button></h2>
+        <ol class="history" id="history"></ol>
+        <p class="empty" id="historyEmpty">還沒有紀錄。轉到想吃的，按「就吃這個」就會記在這裡。</p>
+      </div>
+    </section>
+  </main>
+
+  <details class="menu" id="menu">
+    <summary>看全部 1,000 道菜單</summary>
+    <div class="menu-tools">
+      <input type="search" id="menuSearch" placeholder="搜尋，例如：咖哩、拉麵、便當" aria-label="搜尋菜單">
+      <span class="count" id="menuCount"></span>
+    </div>
+    <div id="menuList"></div>
+  </details>
+
+  <footer>「最近吃過」只存在你自己的瀏覽器裡。把網址分享給朋友，每個人的紀錄各自分開，不會互相看到。</footer>
+</div>
+
+<script type="text/plain" id="dishes">
+@台式|台式便當
+排骨便當
+炸雞腿便當
+滷雞腿便當
+烤雞腿便當
+控肉便當
+鯖魚便當
+虱目魚肚便當
+鮭魚便當
+秋刀魚便當
+魚排便當
+雞排便當
+豬排便當
+燒肉便當
+三杯雞便當
+宮保雞丁便當
+糖醋排骨便當
+紅燒獅子頭便當
+香腸便當
+蒜泥白肉便當
+鹽酥雞便當
+烤鴨便當
+卡啦雞腿便當
+紅糟肉便當
+蔥爆牛肉便當
+沙茶牛肉便當
+照燒雞腿便當
+京醬肉絲便當
+麻婆豆腐便當
+回鍋肉便當
+客家小炒便當
+鹹豬肉便當
+黃金蝦捲便當
+梅干扣肉便當
+東坡肉便當
+豬腳便當
+滷排骨便當
+炸蝦便當
+蜜汁雞腿便當
+蔥油雞便當
+白斬雞便當
+台鐵懷舊排骨便當
+池上便當
+福隆便當
+燒肉雞腿雙拼便當
+排骨雞腿雙拼便當
+香酥鴨腿便當
+紅燒牛腩便當
+醬燒豬里肌便當
+煎土魠魚便當
+蒲燒鯛魚便當
+椒鹽豬排便當
+咖哩豬排便當
+烤山豬肉便當
+豆乳雞便當
+@台式|台式飯類
+滷肉飯
+雞肉飯
+火雞肉飯
+爌肉飯
+豬腳飯
+鴨肉飯
+鵝肉飯
+筒仔米糕
+油飯
+碗粿
+肉羹飯
+魷魚羹飯
+土魠魚羹飯
+花枝羹飯
+台南蝦仁飯
+排骨飯
+雞腿飯
+牛肉湯＋肉燥飯
+藥燉排骨＋滷肉飯
+虱目魚肚湯＋肉燥飯
+麻油雞飯
+排骨酥湯＋白飯
+羊肉湯＋白飯
+蚵仔煎
+大腸包小腸
+肉圓
+南部粽
+北部粽
+潤餅捲
+刈包＋四神湯
+棺材板
+鹹水雞（一人份）
+鹽酥雞（一人份）
+滷味（自選一人份）
+古早味蛋包飯
+雞排飯
+燒肉飯
+嘉義砂鍋魚頭（一人份）
+豬肝湯＋油飯
+豬血湯＋滷肉飯
+@台式|台式麵・羹湯
+擔仔麵
+切仔麵
+乾麵＋貢丸湯
+麻醬麵
+陽春麵
+乾意麵
+鍋燒意麵
+鍋燒烏龍麵
+鍋燒雞絲麵
+鍋燒冬粉
+鱔魚意麵
+赤肉羹麵
+肉羹麵
+魷魚羹麵
+米粉湯
+炒米粉
+粿仔條湯
+鹹米苔目
+蚵仔麵線
+大腸麵線
+麻油雞麵線
+豬腳麵線
+當歸鴨麵線
+肉燥麵
+菜肉餛飩湯麵
+台式涼麵
+雞絲涼麵
+浮水魚羹麵
+魯麵
+鼎邊銼
+大麵羹
+花蓮扁食湯麵
+客家湯粄條
+客家炒粄條
+鹹湯圓（一碗）
+沙茶羊肉炒麵
+炒泡麵
+羊肉湯麵
+麻油腰花麵線
+彰化貓鼠麵
+蝦仁羹麵
+香菇肉羹米粉
+排骨酥麵
+炒米苔目
+@台式|台式粥品
+虱目魚粥
+台式鹹粥
+清粥小菜（一人份）
+地瓜稀飯配小菜
+海產粥
+吻仔魚粥
+蚵仔粥
+台式肉粥
+@台式|台式鐵板燒
+牛肉鐵板燒
+雞腿鐵板燒
+豬肉鐵板燒
+鮮蝦鐵板燒
+鱈魚鐵板燒
+羊肉鐵板燒
+綜合海鮮鐵板燒
+黑胡椒鐵板麵
+夜市牛排（附鐵板麵）
+夜市豬排
+夜市雞腿排
+夜市綜合排（牛＋雞）
+@台式|自助餐・超商・懶人餐
+自助餐（三菜一肉）
+素食自助餐
+超商微波便當
+超商微波義大利麵
+超商御飯糰＋沙拉
+超商關東煮＋茶葉蛋
+自己煮泡麵加蛋加青菜
+冷凍水餃自己煮
+超商雞胸肉＋地瓜
+學餐（隨便挑一攤）
+@中式・港式|港式燒臘
+叉燒飯
+燒鴨飯
+油雞飯
+脆皮燒肉飯
+三寶飯
+叉燒油雞雙拼飯
+燒鴨叉燒雙拼飯
+燒肉叉燒雙拼飯
+油雞燒鴨雙拼飯
+燒鵝飯
+四寶飯
+叉燒撈麵
+燒鴨瀨粉
+燒鵝瀨粉
+叉燒煎蛋飯
+燒肉煎蛋飯
+白切雞飯
+潮州滷鵝飯
+@中式・港式|港式茶餐廳・煲仔飯
+臘味煲仔飯
+滑雞煲仔飯
+排骨煲仔飯
+窩蛋牛肉煲仔飯
+鮮蝦雲吞麵
+牛腩麵
+咖哩牛腩飯
+柱侯牛腩飯
+魚蛋河粉
+乾炒牛河
+星洲炒米
+豉汁排骨飯
+鳳爪排骨飯
+滑蛋蝦仁飯
+滑蛋牛肉飯
+焗豬扒飯
+焗芝士雞扒飯
+葡國雞飯
+餐蛋麵
+沙嗲牛肉麵
+豬扒包套餐
+鹹魚雞粒炒飯
+豉椒牛肉飯
+蝦籽撈麵
+車仔麵
+豉油皇炒麵
+咖哩豬扒飯
+茄汁豬扒飯
+港式乾炒雞絲河
+潮汕牛肉粿條
+@中式・港式|粥品
+廣東粥
+皮蛋瘦肉粥
+艇仔粥
+生滾牛肉粥
+魚片粥
+及第粥
+雞絲粥
+香菇雞肉粥
+鮮蝦粥
+干貝粥
+@中式・港式|牛肉麵・麵館
+紅燒牛肉麵
+清燉牛肉麵
+番茄牛肉麵
+麻辣牛肉麵
+半筋半肉麵
+紅燒牛筋麵
+沙茶牛肉麵
+牛肉湯麵（清湯）
+大滷麵
+榨菜肉絲麵
+雪菜肉絲麵
+酸辣湯麵
+蔥開煨麵
+番茄蛋刀削麵
+番茄蛋麵
+炸醬麵
+擔擔麵
+紅油抄手
+重慶小麵
+酸辣粉
+油潑麵
+蘭州牛肉拉麵
+臊子麵
+武漢熱乾麵
+宜賓燃麵
+新疆拌麵
+河南羊肉燴麵
+上海蔥油拌麵
+雪菜黃魚麵
+上海大排麵
+上海粗炒
+排骨年糕
+上海炒年糕
+菜飯＋排骨
+小餛飩＋生煎包
+肉夾饃＋涼皮
+羊肉泡饃
+biangbiang麵
+大盤雞拌麵
+福州魚丸麵
+沙縣拌麵＋扁肉湯
+溫州大餛飩
+炸醬刀削麵
+麻辣刀削麵
+牛肉炒刀削
+牛肉捲餅＋酸辣湯
+餡餅＋小米粥
+@中式・港式|米線・米粉・麻辣
+桂林米粉
+過橋米線
+小鍋米線
+酸菜魚米線
+螺螄粉
+雲南米干
+冒菜
+麻辣燙
+麻辣香鍋（一人份）
+酸菜魚（一人份）
+番茄米線
+麻辣米線
+貴州羊肉粉
+@中式・港式|中式蓋飯・熱炒
+魚香肉絲飯
+番茄炒蛋飯
+青椒肉絲飯
+蒜苔炒肉飯
+孜然羊肉飯
+水煮牛肉飯
+辣子雞丁飯
+小炒黃牛肉飯
+農家小炒肉飯
+剁椒雞蛋飯
+地三鮮蓋飯
+紅燒肉蓋飯
+黃燜雞米飯
+新疆手抓飯
+隆江豬腳飯
+糖醋里肌飯
+左宗棠雞飯
+黑椒牛柳飯
+蠔油牛肉飯
+魚香茄子飯
+酸菜肉絲飯
+蒼蠅頭飯
+宮保蝦仁飯
+麻婆茄子飯
+乾煸四季豆肉末飯
+椒鹽排骨飯
+陳皮橙汁雞飯
+鐵板黑椒牛肉飯
+韭黃牛肉飯
+牛肉燴飯
+豬肉燴飯
+海鮮燴飯
+蝦仁燴飯
+什錦燴飯
+雞肉燴飯
+沙茶羊肉燴飯
+滑蛋豬肉燴飯
+@中式・港式|炒麵・燴麵
+海鮮炒麵
+牛肉炒麵
+什錦炒麵
+雞肉炒麵
+豬肉炒麵
+蝦仁炒麵
+廣州炒麵
+海鮮燴麵
+什錦燴麵
+海鮮炒烏龍
+牛肉炒烏龍
+沙茶炒烏龍
+什錦炒粄條
+牛肉炒河粉
+@中式・港式|炒飯
+蛋炒飯
+蝦仁炒飯
+牛肉炒飯
+豬肉炒飯
+雞肉炒飯
+鮭魚炒飯
+蟹肉炒飯
+火腿蛋炒飯
+培根蛋炒飯
+揚州炒飯
+干貝炒飯
+櫻花蝦炒飯
+沙茶牛肉炒飯
+XO醬海鮮炒飯
+蒜香排骨炒飯
+菜脯炒飯
+叉燒炒飯
+銀魚炒飯
+蟹黃炒飯
+什錦炒飯
+香腸炒飯
+福建炒飯
+臘肉炒飯
+鳳梨蝦仁炒飯
+蝦仁蛋炒飯
+鹹蛋炒飯
+皮蛋肉鬆炒飯
+牛肉蛋炒飯
+@中式・港式|水餃・湯包・麵點
+豬肉高麗菜水餃
+韭菜豬肉水餃
+玉米豬肉水餃
+鮮蝦水餃
+牛肉水餃
+羊肉水餃
+酸菜豬肉水餃
+絲瓜蝦仁水餃
+酸辣湯餃
+水餃＋酸辣湯
+豬肉鍋貼
+韭菜鍋貼
+咖哩鍋貼
+小籠包
+生煎包
+蒸餃
+鮮肉餛飩湯
+鮮蝦餛飩湯
+酸辣抄手
+鍋貼＋玉米濃湯
+小籠包＋酸辣湯
+牛肉餡餅＋湯
+韭菜盒＋酸辣湯
+@日式|拉麵・沾麵
+豚骨拉麵
+醬油拉麵
+味噌拉麵
+鹽味拉麵
+雞白湯拉麵
+魚介豚骨沾麵
+雞白湯沾麵
+辣味噌拉麵
+黑蒜油豚骨拉麵
+家系拉麵
+二郎系拉麵
+柚子鹽拉麵
+小魚乾拉麵
+蛤蜊鹽味拉麵
+叉燒拉麵
+中華冷麵
+油拌麵
+日式擔擔拉麵
+豚骨醬油拉麵
+札幌味噌奶油玉米拉麵
+蝦湯拉麵
+牛骨拉麵
+番茄起司拉麵
+火焰豚骨拉麵
+背脂醬油拉麵
+辛辣沾麵
+炙燒叉燒沾麵
+雞清湯拉麵
+拉麵＋煎餃套餐
+拉麵＋炒飯套餐
+@日式|丼飯
+牛丼
+親子丼
+豬排丼
+天丼
+鮭魚親子丼
+海鮮丼
+鮪魚丼
+鰻魚飯
+燒肉丼
+帶廣豚丼
+照燒雞丼
+唐揚炸雞丼
+炙燒鮭魚丼
+鮪魚蔥花丼
+海膽丼
+星鰻丼
+蟹肉丼
+牛排丼
+蔥鹽豬丼
+起司牛丼
+泡菜豬肉丼
+甜蝦丼
+北海道干貝丼
+三色丼
+中華丼
+天津飯
+溫泉蛋牛丼
+鮭魚卵丼
+炙燒和牛丼
+蔥花鮪魚山藥丼
+炸蝦丼
+照燒鰤魚丼
+牛舌丼
+鯛魚炊飯
+鰻魚三吃
+海鮮炊飯
+壽喜燒牛肉丼
+鹽味雞肉丼
+@日式|定食
+鹽烤鯖魚定食
+味噌煮鯖魚定食
+鹽烤鮭魚定食
+里肌豬排定食
+腰內豬排定食
+唐揚炸雞定食
+薑燒豬肉定食
+照燒雞腿定食
+漢堡排定食
+南蠻炸雞定食
+炸蝦定食
+天婦羅定食
+生魚片定食
+牛舌定食
+炸牡蠣定食
+可樂餅定食
+鹽烤秋刀魚定食
+炸竹莢魚定食
+名古屋味噌豬排定食
+起司豬排定食
+銀鱈魚西京燒定食
+烤雞肉串定食
+炸牛排定食
+壽喜燒定食
+一人燒肉套餐
+煎餃定食
+千層豬排定食
+鹽烤鯛魚定食
+鮭魚炊飯定食
+炙燒鯖魚押壽司套餐
+@日式|日式咖哩
+豬排咖哩飯
+日式牛肉咖哩飯
+炸雞咖哩飯
+咖哩蛋包飯
+北海道湯咖哩
+漢堡排咖哩飯
+海鮮咖哩飯
+蔬菜咖哩飯
+可樂餅咖哩飯
+炸蝦咖哩飯
+燒咖哩（焗烤咖哩飯）
+牛筋咖哩飯
+起司漢堡排咖哩
+半熟蛋雞腿咖哩
+@日式|烏龍・蕎麥
+豆皮烏龍麵
+天婦羅烏龍麵
+肉烏龍麵
+咖哩烏龍麵
+明太子奶油烏龍麵
+釜玉烏龍麵
+冷烏龍麵
+月見烏龍麵
+竹篩蕎麥麵
+天婦羅蕎麥麵
+鴨肉蕎麥麵
+山藥泥蕎麥麵
+炸豬排烏龍麵
+豆皮壽司＋烏龍麵套餐
+冷蕎麥麵＋天丼套餐
+@日式|和風洋食・其他
+蛋包飯
+日式炒麵
+大阪燒
+廣島燒
+握壽司套餐
+迴轉壽司
+手捲壽司套餐
+鮭魚茶泡飯
+鯛魚茶泡飯
+關東煮（一人份）
+拿坡里義大利麵
+明太子義大利麵
+焗烤奶油蝦飯
+洋蔥牛肉燴飯
+日式豬排三明治
+炸牡蠣蛋包飯
+和風蘿蔔泥漢堡排
+日式炸雞便當
+鰻魚玉子燒便當
+鐵火卷＋味噌湯套餐
+日式炸串套餐
+炒烏龍麵
+日式蒜香炒飯
+雞肉丸烏龍麵
+@韓式|韓式料理
+石鍋拌飯
+生拌牛肉拌飯
+泡菜鍋
+泡菜豬肉鍋
+泡菜鮪魚鍋
+大醬湯定食
+一人份部隊鍋
+韓式炸雞（半隻）
+辣炒年糕＋紫菜飯捲
+紫菜飯捲
+鮪魚起司飯捲
+韓式水冷麵
+韓式拌冷麵
+韓式炸醬麵
+韓式炸醬飯
+韓式炒碼麵
+豬肉湯飯
+蔘雞湯
+雪濃湯
+辣牛肉湯飯
+解酒湯
+馬鈴薯排骨湯飯
+辣炒豬肉蓋飯
+韓式烤牛肉蓋飯
+辣炒魷魚蓋飯
+泡菜炒飯
+韓式泡麵加起司
+辣炒雞排蓋飯
+韓式炸豬排
+刀切麵
+麵疙瘩湯
+年糕湯
+醬蟹蓋飯
+豆芽湯飯
+韓式鐵盒便當
+烤五花肉定食
+韓式鮑魚粥
+起司辣炒年糕＋飯捲
+韓式辣味海鮮麵
+韓式蛋包飯
+牛肉海帶湯飯
+韓式燉雞（一人份）
+辣燉排骨飯
+海鮮嫩豆腐鍋
+牛肉嫩豆腐鍋
+豬肉嫩豆腐鍋
+起司嫩豆腐鍋
+蛤蜊嫩豆腐鍋
+辣鱈魚湯飯
+韓式烤肋排定食
+排骨湯飯
+辣炒章魚蓋飯
+韓式炸雞蓋飯
+血腸湯飯
+韓式海鮮粥
+泡菜炒烏龍麵
+韓式辣拌麵
+韓式起司炸豬排
+辣燉雞湯飯
+韓式明太子拌飯
+韓式鮪魚拌飯
+韓式炒碼飯
+糖醋肉＋炸醬麵套餐
+韓式豆漿冷麵
+@東南亞|新馬・海南雞
+海南雞飯
+雙拼海南雞飯（白雞＋燒雞）
+咖哩叻沙
+亞參叻沙
+肉骨茶飯
+椰漿飯
+炒粿條
+福建蝦麵
+馬來炒麵
+沙嗲雞肉串飯
+娘惹咖哩雞飯
+印尼炒飯
+印度煎餅配咖哩
+肉脞麵
+板麵
+乾撈雲吞麵
+巴東牛肉飯
+咖哩麵
+印尼雞湯飯
+菲律賓醬燒雞飯
+緬甸椰汁雞麵
+緬甸魚湯米線
+新加坡辣椒醬炒蝦飯
+肉骨茶麵線
+怡保芽菜雞河粉
+寮式涼拌肉末＋糯米飯
+菲律賓烤豬肉飯
+@東南亞|泰式
+鳳梨炒飯
+泰式蝦醬炒飯
+泰式炒河粉
+泰式船麵
+冬蔭功湯麵
+泰式豬腳飯
+泰式炒寬粉
+泰式醉麵
+泰北金麵
+青木瓜沙拉＋烤雞＋糯米飯
+泰式烤雞腿飯
+椒麻雞飯
+泰式豬頸肉飯
+泰式粿條湯
+泰式雞肉粥
+泰式烤豬肉串＋糯米飯
+綠咖哩米線
+泰式滷鴨麵
+泰式檸檬魚飯
+泰式炸豬肉飯
+泰式涼拌海鮮冬粉
+泰式酸辣雞翅飯
+泰式蒜炸豬飯
+打拋豬飯
+打拋雞飯
+打拋牛肉飯
+打拋海鮮飯
+打拋豆腐飯
+綠咖哩雞肉飯
+綠咖哩豬肉飯
+綠咖哩牛肉飯
+綠咖哩海鮮飯
+紅咖哩雞肉飯
+紅咖哩豬肉飯
+紅咖哩牛肉飯
+紅咖哩鴨肉飯
+黃咖哩雞飯
+瑪莎曼咖哩雞飯
+帕能咖哩豬飯
+綠咖哩炒飯
+打拋豬拌麵
+泰式椰奶雞湯＋白飯
+泰式炒泡麵
+泰式椒麻豬飯
+@東南亞|越南
+生牛肉河粉
+綜合牛肉河粉
+牛腩河粉
+牛筋丸河粉
+雞肉河粉
+海鮮河粉
+越式烤肉法國麵包
+越式雞肉法國麵包
+越式肉醬法國麵包
+越式烤肉米線
+順化牛肉米線
+越式碎米飯
+越式牛肉炒河粉
+會安雞飯
+蟹肉米線湯
+越式炸春捲米線
+越式咖哩雞＋法國麵包
+越式烤豬排飯
+越式生春捲＋河粉套餐
+越式酸湯魚米線
+越式燉牛肉＋法國麵包
+越式肉丸米線
+@西式|漢堡・速食
+經典牛肉漢堡
+起司牛肉漢堡
+雙層起司漢堡
+培根起司漢堡
+酪梨牛肉漢堡
+蘑菇瑞士起司漢堡
+BBQ培根洋蔥圈漢堡
+炸雞腿堡
+辣味雞腿堡
+魚排堡
+照燒雞腿堡
+燒肉米漢堡
+炸蝦堡
+花生醬牛肉漢堡
+和牛漢堡
+手撕豬肉漢堡
+藍紋起司漢堡
+墨西哥辣椒牛肉漢堡
+炸雞套餐（兩塊＋薯條）
+雞柳條套餐
+雞塊套餐
+熱狗堡
+辣肉醬熱狗堡
+費城起司牛肉三明治
+義式經典潛艇堡
+火雞胸潛艇堡
+鮪魚潛艇堡
+照燒雞潛艇堡
+肉丸潛艇堡
+總匯三明治
+帕尼尼
+古巴三明治
+法式火腿起司三明治
+BLT三明治
+水牛城辣雞翅＋薯條
+起司通心粉
+牧羊人派
+炸雞鬆餅
+烤牛肉三明治
+美式肉餅
+龍蝦堡
+鱈魚堡套餐
+起司牛肉捲
+雞肉起司漢堡
+煙燻牛胸肉三明治
+舒肥雞腿堡
+起司蛋漢堡
+香辣炸雞腿排飯
+@西式|早午餐
+美式早午餐盤
+班尼迪克蛋
+煙燻鮭魚班尼迪克蛋
+北非蛋＋麵包
+歐姆蛋＋沙拉早午餐
+炒蛋可頌套餐
+英式早午餐盤
+@西式|義大利麵・燉飯
+番茄雞肉義大利麵
+番茄培根義大利麵
+番茄海鮮義大利麵
+番茄牛肉義大利麵
+番茄鮮蝦義大利麵
+番茄肉丸義大利麵
+番茄蛤蜊義大利麵
+白醬雞肉義大利麵
+白醬培根義大利麵
+白醬海鮮義大利麵
+白醬鮭魚義大利麵
+白醬野菇義大利麵
+白醬鮮蝦義大利麵
+青醬雞肉義大利麵
+青醬海鮮義大利麵
+青醬鮮蝦義大利麵
+青醬蛤蜊義大利麵
+青醬野菇義大利麵
+青醬培根義大利麵
+清炒海鮮義大利麵
+清炒雞肉義大利麵
+清炒鮮蝦義大利麵
+清炒培根義大利麵
+番茄肉醬義大利麵
+奶油培根義大利麵
+白酒蛤蜊義大利麵
+墨魚汁海鮮義大利麵
+蒜香辣椒義大利麵
+番茄羅勒義大利麵
+粉紅醬鮮蝦義大利麵
+茄汁辣味香腸義大利麵
+辣味番茄筆管麵
+起司輪義大利麵
+千層麵
+青醬麵疙瘩
+義大利餃
+松露野菇燉飯
+南瓜燉飯
+海鮮燉飯
+墨魚燉飯
+四種起司燉飯
+牛肝菌燉飯
+番茄雞肉燉飯
+青醬雞肉燉飯
+白醬鮭魚燉飯
+紅醬牛肉燉飯
+西班牙海鮮燉飯（一人份）
+@西式|焗烤・披薩
+焗烤海鮮飯
+焗烤雞肉飯
+焗烤肉醬麵
+焗烤白醬培根麵
+焗烤鮮蝦飯
+焗烤咖哩雞飯
+個人瑪格麗特披薩
+個人夏威夷披薩
+個人臘腸披薩
+個人四種起司披薩
+個人海鮮披薩
+個人燒烤雞肉披薩
+個人蔬菜披薩
+卡佐內
+@西式|排餐・歐陸
+菲力牛排
+沙朗牛排
+肋眼牛排
+紐約客牛排
+牛小排
+香煎雞腿排
+香煎羊排
+香煎鮭魚排
+德國豬腳
+烤豬肋排
+炸魚薯條
+烤半雞
+法式鹹派
+匈牙利燉牛肉
+法式油封鴨腿
+紅酒燉牛肉
+義式燉牛膝
+米蘭炸豬排
+瑞典肉丸
+德式香腸＋酸菜＋馬鈴薯
+羅宋湯套餐
+俄式酸奶牛肉飯
+漢堡排佐蘑菇醬
+牛排薯條
+美式BBQ雞腿飯
+@異國風味|印度・南亞
+奶油雞咖哩＋烤餅
+印度烤雞套餐
+瑪薩拉雞咖哩
+菠菜起司咖哩
+羊肉咖哩
+雞肉香飯
+羊肉香飯
+鷹嘴豆咖哩
+扁豆咖哩＋米飯
+印度套餐（Thali）
+馬薩拉多薩
+尼泊爾饃饃
+斯里蘭卡咖哩飯
+椰奶咖哩蝦飯
+酸辣咖哩豬
+印度烤雞捲餅
+印度咖哩羊肉香飯
+坦都里烤魚套餐
+印度蔬菜香飯
+起司烤餅＋咖哩
+藏式牛肉麵
+尼泊爾扁豆咖哩套餐
+@異國風味|中東・地中海
+土耳其烤肉飯
+土耳其烤肉捲
+沙威瑪捲餅
+沙威瑪餐盤
+法拉費皮塔
+鷹嘴豆泥餐盤
+黎巴嫩烤雞串飯
+摩洛哥塔吉鍋
+希臘烤肉皮塔
+地中海烤羊肉飯
+土耳其披薩（Pide）
+烏茲別克抓飯
+喬治亞起司船麵包
+埃及庫夏立
+伊朗烤肉飯
+葡萄牙海鮮燉飯
+@異國風味|墨西哥・美洲
+牛肉墨西哥捲餅
+雞肉墨西哥捲餅
+豬肉墨西哥捲餅
+墨西哥塔可（三個一份）
+墨西哥起司薄餅
+墨西哥捲餅碗
+墨西哥辣肉醬飯
+墨西哥焗捲餅
+法士達（一人份）
+墨西哥烤魚塔可
+夏威夷漢堡排蓋飯
+夏威夷蒜味蝦飯
+牙買加烤雞飯
+紐奧良秋葵濃湯飯
+秘魯炒牛肉飯
+巴西烤肉飯
+古巴燉牛肉飯
+巴西黑豆燉肉飯
+墨西哥雞肉飯
+卡津香料雞飯
+@鍋物|個人小火鍋
+石頭火鍋
+麻辣鍋
+牛奶鍋
+壽喜燒鍋
+豚骨鍋
+番茄鍋
+昆布鍋
+酸菜白肉鍋
+藥膳鍋
+咖哩鍋
+臭臭鍋
+個人羊肉爐
+一人份薑母鴨
+麻油雞鍋
+沙茶鍋
+味噌鍋
+豆漿鍋
+胡椒豬肚雞鍋
+日式涮涮鍋
+和牛涮涮鍋
+海鮮鍋
+菇菇鍋
+南瓜鍋
+泰式酸辣鍋
+麻辣鴨血臭豆腐鍋
+燒酒雞（一人份）
+花雕雞（一人份）
+個人牛肉爐
+麻辣鴛鴦鍋（一人份）
+起司牛奶鍋
+韓式泡菜小火鍋
+蒙古鍋（一人份）
+鮮魚湯鍋
+蛤蜊鍋
+猴頭菇鍋
+香菇雞湯鍋
+番茄起司鍋
+清燉牛肉鍋
+金湯酸菜魚鍋
+椰香咖哩鍋
+辣味噌鍋
+雞白湯鍋
+南洋叻沙鍋
+鮮蚵豆腐鍋
+@輕食・素食|健康餐盒・沙拉
+舒肥雞胸健身餐盒
+鮭魚健身餐盒
+牛肉健身餐盒
+豬里肌健身餐盒
+鯛魚健身餐盒
+雞腿健身餐盒
+鮭魚波奇碗
+鮪魚波奇碗
+雞肉波奇碗
+豆腐波奇碗
+鮮蝦波奇碗
+雞肉凱薩沙拉
+雞肉藜麥沙拉
+鮭魚酪梨沙拉
+希臘沙拉佐烤雞
+尼斯鮪魚沙拉
+地中海穀物碗
+糙米健康便當
+嫩煎牛排溫沙拉
+雞胸肉捲餅
+鮪魚捲餅
+燻鮭魚貝果
+酪梨吐司早午餐
+香煎鯛魚低卡便當
+清蒸鱸魚健康餐
+和風蕎麥麵沙拉
+雞胸肉三明治
+蝦仁酪梨沙拉
+雞肉凱薩捲餅
+烤蔬菜藜麥碗
+日式雞肉沙拉便當
+蒟蒻涼麵
+酪梨雞肉三明治
+五穀飯雞腿健康便當
+溫野菜雞胸餐
+藜麥牛肉碗
+@輕食・素食|素食
+素食便當
+素炒飯
+素燥飯
+素食麻辣燙
+蔬食拉麵
+植物肉漢堡
+素食水餃
+羅漢齋炒麵
+番茄蔬菜義大利麵
+素排骨飯
+麻油猴頭菇飯
+素食咖哩飯
+素食鍋
+素食炒米粉
+蔬食石鍋拌飯
+素食潤餅
+豆腐蔬菜丼
+蔬食焗烤飯
+烤蔬菜帕尼尼
+素食漢堡排定食
+蔬食咖哩烏龍
+豆腐排定食
+素肉燥乾麵
+鷹嘴豆泥蔬菜捲餅
+菇菇炊飯
+</script>
+
+<script>
+(function(){
+  'use strict';
+  var TAU = Math.PI * 2;
+  var GROUPS = ['台式','中式・港式','日式','韓式','東南亞','西式','異國風味','鍋物','輕食・素食'];
+  var CANVAS_FONT = '"LXGW WenKai TC","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ── 資料 ── */
+  function kindOf(name){
+    var n = name.replace(/麵包/g, '');
+    if (/麵|粉|米線|烏龍|蕎麥|粿條|粿仔條|粄條|米苔目|鼎邊|米干|叻沙|牛河|雞絲河|炒米|粗炒|刀削/.test(n)) return '麵';
+    if (/飯|丼|便當|粥|米糕|碗粿|定食|粽|壽司|炊|手捲|卷|餐盒|健康餐/.test(n)) return '飯';
+    if (/咖哩/.test(name) && !/烤餅|麵包|多薩/.test(name)) return '飯';
+    return '其他';
+  }
+  var DISHES = [];
+  (function parse(){
+    var g = '', s = '';
+    document.getElementById('dishes').textContent.split('\n').forEach(function(line){
+      line = line.trim();
+      if (!line || line.indexOf('/*') === 0) return;
+      if (line.charAt(0) === '@'){ var p = line.slice(1).split('|'); g = p[0]; s = p[1] || ''; return; }
+      DISHES.push({ no: DISHES.length + 1, name: line, group: g, sub: s, kind: kindOf(line) });
+    });
+  })();
+
+  /* ── 狀態（只存在這台瀏覽器） ── */
+  var KEY = 'today-eat-v1';
+  var state = { groups: [], kind: 'all', avoid: true, history: [] };
+  try {
+    var saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (saved && typeof saved === 'object'){
+      if (Array.isArray(saved.groups)) state.groups = saved.groups.filter(function(g){ return GROUPS.indexOf(g) >= 0; });
+      if (['all','飯','麵','其他'].indexOf(saved.kind) >= 0) state.kind = saved.kind;
+      if (typeof saved.avoid === 'boolean') state.avoid = saved.avoid;
+      if (Array.isArray(saved.history)) state.history = saved.history.filter(function(h){ return h && typeof h.n === 'string' && typeof h.t === 'number'; }).slice(0, 30);
+    }
+  } catch (e) {}
+  function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+  var vetoed = {};   // 這次打開頁面時按過「不要」的
+
+  function basePool(){
+    return DISHES.filter(function(d){
+      return (!state.groups.length || state.groups.indexOf(d.group) >= 0) && (state.kind === 'all' || d.kind === state.kind);
+    });
+  }
+  function recentSet(){
+    var r = {};
+    if (state.avoid) state.history.slice(0, 7).forEach(function(h){ r[h.n] = 1; });
+    return r;
+  }
+  function pool(){
+    var r = recentSet();
+    return basePool().filter(function(d){ return !vetoed[d.name] && !r[d.name]; });
+  }
+  function sample(arr, k){
+    var a = arr.slice(), n = a.length, out = [];
+    for (var i = 0; i < k && i < n; i++){
+      var j = i + Math.floor(Math.random() * (n - i));
+      var t = a[i]; a[i] = a[j]; a[j] = t; out.push(a[i]);
+    }
+    return out;
+  }
+  function mod(a, m){ return ((a % m) + m) % m; }
+  function shortName(n){ return n.replace(/（[^）]*）/g, ''); }
+
+  /* ── 轉盤 ── */
+  var cv = document.getElementById('wheel');
+  var ctx = cv.getContext('2d');
+  var wrap = document.getElementById('wheelWrap');
+  var pointer = document.getElementById('pointer');
+  var slices = [], rot = 0, spinning = false, winIdx = -1, dpr = 1;
+
+  function palette(){
+    var cs = getComputedStyle(document.documentElement);
+    function v(k){ return cs.getPropertyValue(k).trim(); }
+    return {
+      pairs: [[v('--chili'), v('--on-dark')], [v('--yolk'), v('--on-light')], [v('--scallion'), v('--on-dark')],
+              [v('--salmon'), v('--on-light')], [v('--nori'), v('--on-dark')], [v('--rice'), v('--on-light')]],
+      dim: v('--dim'), line: v('--surface')
+    };
+  }
+  function palIdx(i, n){
+    if (n > 1 && i === n - 1 && (n - 1) % 6 === 0) return 2;  // 避免頭尾同色相鄰
+    return i % 6;
+  }
+  function fit(text, maxW){
+    if (ctx.measureText(text).width <= maxW) return text;
+    var t = text;
+    while (t.length > 1 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1);
+    return t + '…';
+  }
+  function resize(){
+    var r = cv.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio || 1, 3);
+    cv.width = Math.max(1, Math.round(r.width * dpr));
+    cv.height = Math.max(1, Math.round(r.height * dpr));
+    draw();
+  }
+  function draw(){
+    var W = cv.width, R = W / 2, n = slices.length;
+    ctx.clearRect(0, 0, W, W);
+    if (!n) return;
+    var seg = TAU / n, pal = palette();
+    var fs = Math.max(11 * dpr, Math.min(R * 0.08, 18 * dpr));
+    ctx.save();
+    ctx.translate(R, R);
+    ctx.rotate(rot);
+    for (var i = 0; i < n; i++){
+      var a0 = i * seg - Math.PI / 2, pair = pal.pairs[palIdx(i, n)];
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, R, a0, a0 + seg); ctx.closePath();
+      ctx.fillStyle = pair[0]; ctx.fill();
+      if (n > 1){ ctx.lineWidth = Math.max(1, dpr * 1.5); ctx.strokeStyle = pal.line; ctx.stroke(); }
+      ctx.save();
+      ctx.rotate(a0 + seg / 2);
+      ctx.font = '700 ' + fs + 'px ' + CANVAS_FONT;
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = pair[1];
+      ctx.fillText(fit(shortName(slices[i].name), R * 0.64), R - R * 0.07, 0);
+      ctx.restore();
+    }
+    if (winIdx >= 0 && !spinning && n > 1){
+      for (var j = 0; j < n; j++){
+        if (j === winIdx) continue;
+        var b0 = j * seg - Math.PI / 2;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, R, b0, b0 + seg); ctx.closePath();
+        ctx.fillStyle = pal.dim; ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+  function loadGlyphs(){
+    if (!document.fonts || !document.fonts.load) return;
+    var txt = slices.map(function(d){ return d.name; }).join('') + '…';
+    document.fonts.load('700 16px "LXGW WenKai TC"', txt).then(function(){ if (!spinning) draw(); }).catch(function(){});
+  }
+  function fillWheel(){
+    var p = pool();
+    if (!p.length) p = basePool();
+    slices = sample(p, Math.min(12, p.length));
+  }
+  function idxUnderPointer(){
+    var n = slices.length; if (!n) return -1;
+    return Math.floor(mod(-rot, TAU) / (TAU / n)) % n;
+  }
+  function tick(){
+    if (reduceMotion) return;
+    pointer.classList.remove('tick'); void pointer.getBoundingClientRect(); pointer.classList.add('tick');
+  }
+
+  /* ── 介面 ── */
+  var $ = function(id){ return document.getElementById(id); };
+  var spinBtn = $('spinBtn'), acceptBtn = $('acceptBtn'), rerollBtn = $('rerollBtn'), mapLink = $('mapLink');
+  var dishEl = $('dish'), metaEl = $('dishMeta'), noEl = $('dishNo'), hint = $('hint'), ticket = $('ticket');
+  var current = null;
+  var lastDraw = { size: 0, note: '' };
+
+  function mapQuery(d){
+    if (/自己煮|學餐/.test(d.name)) return null;
+    if (/^超商/.test(d.name)) return '便利商店';
+    return shortName(d.name).split('＋')[0].replace(/^(個人|一人份)/, '').trim();
+  }
+
+  function spin(){
+    if (spinning) return;
+    var p = pool(), note = '';
+    if (!p.length){
+      if (!basePool().length){ hint.textContent = '這個組合沒有餐點，換個分類試試。'; return; }
+      vetoed = {};
+      p = pool();
+      note = '這一類你都說過不要了，重新開始抽。';
+      if (!p.length){ p = basePool(); note = '這一類都吃過了，這次不避開最近吃過的。'; }
+    }
+    var target = p[Math.floor(Math.random() * p.length)];
+    // 用 target 所在的池子組 12 格
+    var others = sample(p.filter(function(d){ return d !== target; }), Math.min(12, p.length) - 1);
+    var k = Math.floor(Math.random() * (others.length + 1));
+    others.splice(k, 0, target);
+    slices = others;
+    loadGlyphs();
+    var n = slices.length, seg = TAU / n;
+    var landing = (k + 0.5) * seg + (Math.random() - 0.5) * 0.7 * seg;
+    var delta = mod(mod(-landing, TAU) - mod(rot, TAU), TAU);
+    var final = rot + (reduceMotion ? 1 : 6) * TAU + delta;
+    var dur = reduceMotion ? 700 : 4200;
+
+    spinning = true; winIdx = -1; current = null;
+    spinBtn.disabled = true; spinBtn.textContent = '…';
+    acceptBtn.disabled = true; rerollBtn.disabled = true; mapLink.hidden = true;
+    dishEl.textContent = '轉轉轉……'; dishEl.classList.add('idle');
+    metaEl.textContent = '從 ' + p.length.toLocaleString() + ' 道裡抽';
+    noEl.textContent = 'No. ----';
+    lastDraw = { size: p.length, note: note };
+    hint.textContent = note || ('從 ' + p.length.toLocaleString() + ' 道裡抽……');
+
+    var start = rot, t0 = performance.now(), last = idxUnderPointer();
+    function frame(now){
+      var t = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - t, 4);
+      rot = start + (final - start) * e;
+      draw();
+      var idx = idxUnderPointer();
+      if (idx !== last){ last = idx; tick(); }
+      if (t < 1){ requestAnimationFrame(frame); return; }
+      rot = mod(final, TAU);
+      spinning = false; winIdx = idxUnderPointer();
+      draw();
+      showResult(slices[winIdx]);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function showResult(d){
+    current = d;
+    dishEl.textContent = d.name; dishEl.classList.remove('idle');
+    metaEl.textContent = d.group + '・' + d.sub;
+    noEl.textContent = 'No. ' + String(d.no).padStart(4, '0') + ' / 1000';
+    var q = mapQuery(d);
+    if (q){ mapLink.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q); mapLink.hidden = false; }
+    else mapLink.hidden = true;
+    hint.textContent = lastDraw.note || ('這次是從 ' + lastDraw.size.toLocaleString() + ' 道裡抽中的。盤上只擺得下 12 道，每轉一次都會換。');
+    spinBtn.disabled = false; spinBtn.textContent = '再轉';
+    acceptBtn.disabled = false; rerollBtn.disabled = false;
+    ticket.classList.remove('pop'); void ticket.getBoundingClientRect(); ticket.classList.add('pop');
+    var tr = ticket.getBoundingClientRect();
+    if (tr.bottom > window.innerHeight) ticket.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest' });
+    updateCount();
+  }
+
+  acceptBtn.addEventListener('click', function(){
+    if (!current) return;
+    state.history.unshift({ n: current.name, t: Date.now() });
+    state.history = state.history.slice(0, 30);
+    save(); renderHistory(); updateCount();
+    acceptBtn.disabled = true;
+    hint.textContent = state.avoid ? '記下了。接下來幾次會先避開它。' : '記下了，祝用餐愉快。';
+  });
+  rerollBtn.addEventListener('click', function(){
+    if (!current) return;
+    vetoed[current.name] = 1;
+    spin();
+  });
+  spinBtn.addEventListener('click', spin);
+  document.addEventListener('keydown', function(e){
+    if ((e.code === 'Space' || e.key === ' ') && (e.target === document.body || e.target === document.documentElement)){
+      e.preventDefault(); spin();
+    }
+  });
+
+  /* 篩選 */
+  var chipsEl = $('groupChips'), segEl = $('kindSeg'), avoidEl = $('avoidRecent');
+  function renderChips(){
+    var counts = {};
+    DISHES.forEach(function(d){ counts[d.group] = (counts[d.group] || 0) + 1; });
+    var html = '<button type="button" class="chip" data-g="" aria-pressed="' + (!state.groups.length) + '">全部<span class="n">' + DISHES.length.toLocaleString() + '</span></button>';
+    GROUPS.forEach(function(g){
+      html += '<button type="button" class="chip" data-g="' + g + '" aria-pressed="' + (state.groups.indexOf(g) >= 0) + '">' + g + '<span class="n">' + (counts[g] || 0) + '</span></button>';
+    });
+    chipsEl.innerHTML = html;
+    Array.prototype.forEach.call(segEl.querySelectorAll('button'), function(b){
+      b.setAttribute('aria-pressed', String(b.getAttribute('data-kind') === state.kind));
+    });
+    avoidEl.checked = state.avoid;
+  }
+  function filtersChanged(){
+    save(); renderChips(); updateCount();
+    if (!spinning){ winIdx = -1; fillWheel(); loadGlyphs(); draw(); }
+  }
+  chipsEl.addEventListener('click', function(e){
+    var b = e.target.closest('.chip'); if (!b) return;
+    var g = b.getAttribute('data-g');
+    if (!g) state.groups = [];
+    else {
+      var i = state.groups.indexOf(g);
+      if (i >= 0) state.groups.splice(i, 1); else state.groups.push(g);
+      if (state.groups.length === GROUPS.length) state.groups = [];
+    }
+    filtersChanged();
+  });
+  segEl.addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b) return;
+    state.kind = b.getAttribute('data-kind'); filtersChanged();
+  });
+  avoidEl.addEventListener('change', function(){ state.avoid = avoidEl.checked; filtersChanged(); });
+
+  function updateCount(){
+    var base = basePool().length, p = pool().length;
+    var txt = '現在會從 <b>' + p.toLocaleString() + '</b> 道裡抽';
+    if (p < base) txt += '（已扣掉 ' + (base - p) + ' 道最近吃過或按過不要的）';
+    if (!base) txt = '這個組合沒有餐點，換個分類試試。';
+    $('poolCount').innerHTML = txt;
+  }
+
+  /* 最近吃過 */
+  function when(t){
+    var d = new Date(t), now = new Date();
+    var hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    var day0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    if (t >= day0) return '今天 ' + hm;
+    if (t >= day0 - 864e5) return '昨天 ' + hm;
+    return (d.getMonth() + 1) + '/' + d.getDate();
+  }
+  function esc(s){ return s.replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function renderHistory(){
+    var list = state.history.slice(0, 10);
+    $('history').innerHTML = list.map(function(h){
+      return '<li><span class="name">' + esc(h.n) + '</span><span class="when">' + when(h.t) + '</span></li>';
+    }).join('');
+    $('historyEmpty').hidden = list.length > 0;
+    $('clearHist').hidden = list.length === 0;
+  }
+  var clearBtn = $('clearHist'), armTimer = null;
+  clearBtn.addEventListener('click', function(){
+    if (!clearBtn.classList.contains('armed')){
+      clearBtn.classList.add('armed'); clearBtn.textContent = '再按一次確定清除';
+      clearTimeout(armTimer);
+      armTimer = setTimeout(function(){ clearBtn.classList.remove('armed'); clearBtn.textContent = '清除紀錄'; }, 3000);
+      return;
+    }
+    clearTimeout(armTimer);
+    clearBtn.classList.remove('armed'); clearBtn.textContent = '清除紀錄';
+    state.history = []; save(); renderHistory(); updateCount();
+  });
+
+  /* 全部菜單 */
+  var menuBuilt = false;
+  function buildMenu(q){
+    q = (q || '').trim();
+    var html = '', total = 0, byGroup = {};
+    DISHES.forEach(function(d){
+      if (q && d.name.indexOf(q) < 0) return;
+      (byGroup[d.group] = byGroup[d.group] || {});
+      (byGroup[d.group][d.sub] = byGroup[d.group][d.sub] || []).push(d);
+      total++;
+    });
+    GROUPS.forEach(function(g){
+      var subs = byGroup[g]; if (!subs) return;
+      var cnt = 0, inner = '';
+      Object.keys(subs).forEach(function(s){
+        cnt += subs[s].length;
+        inner += '<div class="menu-sub"><h4>' + esc(s) + '</h4><ul>' + subs[s].map(function(d){
+          var nm = esc(d.name);
+          if (q){ var eq = esc(q); nm = nm.split(eq).join('<mark>' + eq + '</mark>'); }
+          return '<li>' + nm + '</li>';
+        }).join('') + '</ul></div>';
+      });
+      html += '<section class="menu-group"><h3>' + esc(g) + '<span>' + cnt + ' 道</span></h3>' + inner + '</section>';
+    });
+    $('menuList').innerHTML = html || '<p class="empty">找不到含「' + esc(q) + '」的餐點。</p>';
+    $('menuCount').textContent = q ? '找到 ' + total + ' 道' : '共 ' + total.toLocaleString() + ' 道';
+  }
+  $('menu').addEventListener('toggle', function(){ if (this.open && !menuBuilt){ menuBuilt = true; buildMenu(''); } });
+  $('menuSearch').addEventListener('input', function(){ menuBuilt = true; buildMenu(this.value); });
+
+  /* 啟動 */
+  renderChips(); renderHistory(); updateCount();
+  fillWheel();
+  resize();
+  loadGlyphs();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ if (!spinning) draw(); });
+  if (window.ResizeObserver) new ResizeObserver(function(){ resize(); }).observe(wrap);
+  else window.addEventListener('resize', resize);
+  if (window.matchMedia){
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    if (mq.addEventListener) mq.addEventListener('change', draw);
+  }
+  new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+})();
+</script>
+</html>
+<!-- 由 build.js 從 ../index.html 產生：請改 index.html 再跑 node build.js，不要直接改這個檔 -->

@@ -32,6 +32,12 @@ console.log('分類：', byGroup);
 console.log('飯／麵／其他：', byKind);
 console.log('頁面腳本語法：', syntaxOk ? 'OK' : '錯誤');
 
-const ok = dishes.length === 1000 && dup.length === 0 && syntaxOk;
+const { execFileSync } = require('child_process');
+let synced = true;
+try { execFileSync(process.execPath, [__dirname + '/build.js', '--check'], { stdio: 'pipe' }); }
+catch (e) { synced = false; }
+console.log('GitHub 版 docs/index.html：', synced ? '已同步' : '過期，請跑 node build.js');
+
+const ok = dishes.length === 1000 && dup.length === 0 && syntaxOk && synced;
 console.log(ok ? 'PASS' : 'FAIL');
 process.exit(ok ? 0 : 1);
